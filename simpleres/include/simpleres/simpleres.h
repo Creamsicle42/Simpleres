@@ -137,10 +137,10 @@ unsigned int SMR_ResourcePackGetResourceCount(
 * @param **data Pointer to a string that will be filled in
 * @return The length of the data string
 */
-int SRM_ResourcePackGetResourceName(
+int SMR_ResourcePackGetResourceName(
 	SMR_ResourcePack *pack,
 	int resource,
-	char **data
+	char *data
 );
 
 #endif

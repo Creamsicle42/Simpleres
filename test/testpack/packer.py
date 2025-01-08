@@ -12,6 +12,7 @@ for fileid in files:
         "start": len(id_text),
         "len": len(fileid)
     }
+    print(len(id_text))
     id_text += fileid
 
 id_padding = len(id_text) % 4

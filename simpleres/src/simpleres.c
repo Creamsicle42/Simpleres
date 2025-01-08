@@ -108,31 +108,43 @@ int SMR_ResourcePackInit(
 
 	// Read in header section
 	for (int i = 0; i < resource_count; i++) {
+		unsigned int id_off;
+		unsigned short id_len;
+		unsigned short flags;
+		unsigned int dat_off;
+		unsigned int dat_len;
 		READ_U32(
-			header->header_section[i].id_start_offset, 
+			id_off, 
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
 		READ_U16(
-			header->header_section[i].id_length, 
+			id_len, 
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
 		READ_U16(
-			header->header_section[i].res_flags, 
+			flags, 
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
 		READ_U32(
-			header->header_section[i].data_offset,
+			dat_off,
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
 		READ_U32(
-			header->header_section[i].data_length,
+			dat_len,
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
+		header->header_section[i] = (SMR_ResourceHeader) {
+			.data_length = dat_len,
+			.data_offset = dat_off,
+			.res_flags = flags,
+			.id_length = id_len,
+			.id_start_offset = id_off
+		};
 	}
 
 	fclose(pack_file);
@@ -151,21 +163,21 @@ unsigned int SMR_ResourcePackGetResourceCount(SMR_ResourcePack *pack) {
 }
 
 
-int SRM_ResourcePackGetResourceName(
+int SMR_ResourcePackGetResourceName(
 	SMR_ResourcePack *pack,
 	int resource,
-	char **data
+	char *data
 ) {
-	SMR_ResourcePackHeader* header = pack->data;
+	SMR_ResourcePackHeader *header = pack->data;
 	if (header->resource_count <= resource)
 		return -1;
-
 	unsigned int off = header->header_section[resource].id_start_offset;
-	unsigned int len = header->header_section[resource].id_length;
-
-	for (int i = 0; i < len; i++)
-		(*data)[i] = header->string_section_offset[off + i];
-	(*data)[len] = '\n';
+	unsigned short len = header->header_section[resource].id_length;
+	for (int i = off; i < off + len; i++) {
+		char c = header->string_section_offset[i];
+		data[i - off] = c;
+	}
+	data[len] = '\00';
 
 	return len;
 }
