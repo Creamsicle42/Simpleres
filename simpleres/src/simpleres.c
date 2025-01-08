@@ -71,6 +71,7 @@ int SMR_ResourcePackInit(
 		printf("ID Section must be padded to 4 bytes, section is currently %d bytes\n", id_section_length);
 		return SMR_ERR_FILE_HEADER_INVALID;
 	}
+
 	
 	// From now on the start of the data space is the header
 	SMR_ResourcePackHeader *header = data_space;
@@ -102,6 +103,10 @@ int SMR_ResourcePackInit(
 	}
 
 	
+	printf("- Main Header: %u\n", sizeof(SMR_ResourcePackHeader));
+	printf("- ID Section: %u\n", id_section_length);
+	printf("- %u Resource Headers: %u\n", resource_count, resource_count * sizeof(SMR_ResourceHeader));
+
 	// Read in id section
 	int id_read_res = fread(
 		(void*)header->string_section_offset,
@@ -130,12 +135,17 @@ int SMR_ResourcePackInit(
 
 	fclose(pack_file);
 
+	pack->data = data_space;
+	pack->data_size = data_size;
+	pack->file_name = pack_path;
+
 	return SMR_ERR_OK;
 }
 
 
 unsigned int SMR_ResourcePackGetResourceCount(SMR_ResourcePack *pack) {
-	return ((SMR_ResourcePackHeader*)pack->data)->resource_count;
+	SMR_ResourcePackHeader *header = pack->data;
+	return header->resource_count;
 }
 
 

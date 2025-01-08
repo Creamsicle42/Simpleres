@@ -14,8 +14,16 @@ int main() {
 		data_size
 	);
 
+	// Make sure header has been read correctly
 	if(result)
 		return result;
+
+	int res_count = SMR_ResourcePackGetResourceCount(&pack);
+	// Make sure pack has expected resource count
+	if (res_count != 2) {
+		printf("Resource count is actually %d", res_count);
+		return 1;
+	}
 
 	return 0;
 }

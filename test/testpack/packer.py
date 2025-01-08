@@ -21,7 +21,7 @@ for _ in range(id_padding):
 with open("test_pack.smr", "wb") as f:
     f.write(b'smpr') # File intro
     f.write(b'\00\01') # File verson
-    f.write(b'\00\02') # Res count
+    f.write(struct.pack('>H', len(files))) # Res count
     f.write(struct.pack('>I', len(id_text))) # ID length
     f.write(str.encode(id_text)) # ID Section
     for fileid in files: # Resource header first pass
