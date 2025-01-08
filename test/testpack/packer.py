@@ -14,6 +14,10 @@ for fileid in files:
     }
     id_text += fileid
 
+id_padding = len(id_text) % 4
+for _ in range(id_padding):
+    id_text += b'\00'.decode('utf-8')
+
 with open("test_pack.smr", "wb") as f:
     f.write(b'smpr') # File intro
     f.write(b'\00\01') # File verson

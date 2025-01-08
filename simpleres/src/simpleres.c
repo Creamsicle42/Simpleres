@@ -2,6 +2,28 @@
 #include "include/simpleres_internal.h"
 #include "stdio.h"
 
+
+#define READ_U16(val, file, err_code) {		\
+	char buff[2];				\
+	if (fread(buff, 1, 2, file) != 2){	\
+		fclose(file);			\
+		return err_code;		\
+	}					\
+	for (int i = 0; i < 2; i++)		\
+		val = buff[i] + (val << 8);	\
+}
+
+
+#define READ_U32(val, file, err_code) {		\
+	char buff[4];				\
+	if (fread(buff, 1, 4, file) != 4){	\
+		fclose(file);			\
+		return err_code;		\
+	}					\
+	for (int i = 0; i < 4; i++)		\
+		val = buff[i] + (val << 8);	\
+}
+
 int SMR_ResourcePackInit(
 	SMR_ResourcePack *pack,
 	const char *pack_path,
@@ -28,6 +50,7 @@ int SMR_ResourcePackInit(
 	for (int i = 0; i < 4; i++) {
 		if (header_read[i] != ref_header[i]) {
 			fclose(pack_file);
+			printf("Header file must start with 'smpr'");
 			return SMR_ERR_FILE_HEADER_INVALID;
 		}
 	}
@@ -35,34 +58,17 @@ int SMR_ResourcePackInit(
 
 	// If the file is valid then we go ahead 
 	unsigned short file_version;
-	if (
-		fread((void*)&file_version, sizeof(short), 1, pack_file) 
-		!= sizeof(short)
-	) {
-		fclose(pack_file);
-		return SMR_ERR_FILE_HEADER_INVALID;
-	}
+	READ_U16(file_version, pack_file, SMR_ERR_FILE_HEADER_INVALID)
 
 	unsigned short resource_count;
-	if (
-		fread((void*)&resource_count, sizeof(short), 1, pack_file)
-		!= sizeof(short)
-	) {
-		fclose(pack_file);
-		return SMR_ERR_FILE_HEADER_INVALID;
-	}
+	READ_U16(resource_count, pack_file, SMR_ERR_FILE_HEADER_INVALID)
 
 	unsigned int id_section_length;
-	if (
-		fread((void*)&id_section_length, sizeof(int), 1, pack_file)
-		!= sizeof(int)
-	) {
-		fclose(pack_file);
-		return SMR_ERR_FILE_HEADER_INVALID;
-	}
+	READ_U32(id_section_length, pack_file, SMR_ERR_FILE_HEADER_INVALID)
 
 	if (id_section_length % 4 != 0) {
 		fclose(pack_file);
+		printf("ID Section must be padded to 4 bytes, section is currently %d bytes\n", id_section_length);
 		return SMR_ERR_FILE_HEADER_INVALID;
 	}
 	
@@ -79,10 +85,19 @@ int SMR_ResourcePackInit(
 	if (
 		sizeof(SMR_ResourcePackHeader)
 		+ id_section_length
-		+ resource_count * sizeof(SMR_ResourcePackHeader)
+		+ resource_count * sizeof(SMR_ResourceHeader)
 		> data_size
 	) {
 		fclose(pack_file);
+		printf("Must have at least %u bytes of space\n",
+		sizeof(SMR_ResourcePackHeader)
+		+ id_section_length
+		+ resource_count * sizeof(SMR_ResourceHeader)
+	
+	 );
+		printf("- Main Header: %u\n", sizeof(SMR_ResourcePackHeader));
+		printf("- ID Section: %u\n", id_section_length);
+		printf("- %u Resource Headers: %u\n", resource_count, resource_count * sizeof(SMR_ResourceHeader));
 		return SMR_ERR_NOT_ENOUGH_SPACE;
 	}
 
