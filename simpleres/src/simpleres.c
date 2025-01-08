@@ -50,7 +50,6 @@ int SMR_ResourcePackInit(
 	for (int i = 0; i < 4; i++) {
 		if (header_read[i] != ref_header[i]) {
 			fclose(pack_file);
-			printf("Header file must start with 'smpr'");
 			return SMR_ERR_FILE_HEADER_INVALID;
 		}
 	}
@@ -68,7 +67,6 @@ int SMR_ResourcePackInit(
 
 	if (id_section_length % 4 != 0) {
 		fclose(pack_file);
-		printf("ID Section must be padded to 4 bytes, section is currently %d bytes\n", id_section_length);
 		return SMR_ERR_FILE_HEADER_INVALID;
 	}
 
@@ -90,22 +88,10 @@ int SMR_ResourcePackInit(
 		> data_size
 	) {
 		fclose(pack_file);
-		printf("Must have at least %u bytes of space\n",
-		sizeof(SMR_ResourcePackHeader)
-		+ id_section_length
-		+ resource_count * sizeof(SMR_ResourceHeader)
-	
-	 );
-		printf("- Main Header: %u\n", sizeof(SMR_ResourcePackHeader));
-		printf("- ID Section: %u\n", id_section_length);
-		printf("- %u Resource Headers: %u\n", resource_count, resource_count * sizeof(SMR_ResourceHeader));
 		return SMR_ERR_NOT_ENOUGH_SPACE;
 	}
 
 	
-	printf("- Main Header: %u\n", sizeof(SMR_ResourcePackHeader));
-	printf("- ID Section: %u\n", id_section_length);
-	printf("- %u Resource Headers: %u\n", resource_count, resource_count * sizeof(SMR_ResourceHeader));
 
 	// Read in id section
 	int id_read_res = fread(
@@ -121,17 +107,33 @@ int SMR_ResourcePackInit(
 	}
 
 	// Read in header section
-	int res_headers_read = fread(
-		(void*)header->header_section,
-		sizeof(SMR_ResourceHeader),
-		resource_count,
-		pack_file
-	);
-	if (res_headers_read != resource_count) {
-		fclose(pack_file);
-		return SMR_ERR_FILE_CANNOT_READ;
+	for (int i = 0; i < resource_count; i++) {
+		READ_U32(
+			header->header_section[i].id_start_offset, 
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
+		READ_U16(
+			header->header_section[i].id_length, 
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
+		READ_U16(
+			header->header_section[i].res_flags, 
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
+		READ_U32(
+			header->header_section[i].data_offset,
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
+		READ_U32(
+			header->header_section[i].data_length,
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
 	}
-
 
 	fclose(pack_file);
 
