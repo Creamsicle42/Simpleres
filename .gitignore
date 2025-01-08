@@ -54,3 +54,4 @@ dkms.conf
 # Cmake build dirs
 build/
 compile_commands.json
+.cache/

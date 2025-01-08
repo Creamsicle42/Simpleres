@@ -10,6 +10,16 @@
 #include <stdio.h>
 
 // -----------------
+// Constants
+// -----------------
+
+#define SMR_ERR_OK 0
+#define SMR_ERR_FILE_NOT_FOUND 1
+#define SMR_ERR_FILE_CANNOT_READ 2
+#define SMR_ERR_FILE_HEADER_INVALID 3
+#define SMR_ERR_NOT_ENOUGH_SPACE 4
+
+// -----------------
 // Struct Definition
 // -----------------
 
@@ -36,7 +46,7 @@ typedef struct {
 * Pack internal structure is intended to be opaque, definition here is only included so that they can be created directly on the stack.
 */
 typedef struct {
-	FILE *pack_file; // The resource pack file
+	const char *file_name; // Name of the pack file
 	void *data; // Pointer to the data used by the pack
 	unsigned int data_size; // Size of data allocated for pack use
 } SMR_ResourcePack;

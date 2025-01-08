@@ -18,7 +18,7 @@ The .smr header section consists of...
 2. 2 bytes encoding the standard version used.
 3. 2 bytes encoding the number of resources in the smr pack.
 4. 4 bytes encoding the length of the resource id section.
-5. The resource ID section, in which the names of all files within the .smr pack are encoded as raw ASCII strings with no terminator.
+5. The resource ID section, in which the names of all files within the .smr pack are encoded as raw ASCII strings with no terminator. This section must be padded to a multiple of four bytes
 6. The resource header section, in which all resource headers are stored in order.
 
 Resource headers consist of...
