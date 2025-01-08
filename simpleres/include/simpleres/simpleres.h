@@ -115,4 +115,32 @@ void SMR_ReturnResourceHandle(
 	SMR_ResourceHandle *handle
 );
 
+
+/**
+ * Get the number of resources in a pack
+*/
+unsigned int SMR_ResourcePackGetResourceCount(
+	SMR_ResourcePack *pack
+);
+
+
+/**
+* Gets the name of a resource.
+*
+* Fills in a char array with a null terminated string containing a
+* resource id.
+*
+* WARNING: Not intended to be data safe, onely useful for testing
+*
+* @param *pack Pack to get data about
+* @param resource Numerical index of the given resource
+* @param **data Pointer to a string that will be filled in
+* @return The length of the data string
+*/
+int SRM_ResourcePackGetResourceName(
+	SMR_ResourcePack *pack,
+	int resource,
+	char **data
+);
+
 #endif

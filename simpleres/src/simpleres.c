@@ -117,3 +117,28 @@ int SMR_ResourcePackInit(
 
 	return SMR_ERR_OK;
 }
+
+
+unsigned int SMR_ResourcePackGetResourceCount(SMR_ResourcePack *pack) {
+	return ((SMR_ResourcePackHeader*)pack->data)->resource_count;
+}
+
+
+int SRM_ResourcePackGetResourceName(
+	SMR_ResourcePack *pack,
+	int resource,
+	char **data
+) {
+	SMR_ResourcePackHeader* header = pack->data;
+	if (header->resource_count <= resource)
+		return -1;
+
+	unsigned int off = header->header_section[resource].id_start_offset;
+	unsigned int len = header->header_section[resource].id_length;
+
+	for (int i = 0; i < len; i++)
+		(*data)[i] = header->string_section_offset[off + i];
+	(*data)[len] = '\n';
+
+	return len;
+}
