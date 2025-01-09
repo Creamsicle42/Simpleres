@@ -2,6 +2,8 @@
 #define SIMPLERES_INTERNAL_H_
 
 
+#include <memory.h>
+
 // Simpleres internal header file, used for non interface headers
 
 
@@ -20,14 +22,10 @@ typedef struct {
 	unsigned short resource_count;
 	char *string_section_offset;
 	SMR_ResourceHeader *header_section;
+	SMR_ResHeap data_heap;
 } SMR_ResourcePackHeader;
 
 
-// Data for a single memory block
-typedef struct {
-	int next_offset; // Number of bytes till the next block
-	short offset; // Offset from this block till the start of the data
-} SMR_MemoryBlock;
 
 
 

@@ -1,5 +1,7 @@
 #include <simpleres/simpleres.h>
+#include <stddef.h>
 #include "include/simpleres_internal.h"
+#include "memory.h"
 #include "stdio.h"
 
 
@@ -152,6 +154,17 @@ int SMR_ResourcePackInit(
 	pack->data = data_space;
 	pack->data_size = data_size;
 	pack->file_name = pack_path;
+	
+	size_t preamble_size = 
+		sizeof(SMR_ResourcePackHeader) +
+		id_section_length + 
+		(sizeof(SMR_ResourceHeader) * resource_count);
+
+	void* container_data = data_space + preamble_size;
+
+
+	SMR_ResHeapInit(&header->data_heap, container_data, data_size - preamble_size);
+
 
 	return SMR_ERR_OK;
 }
