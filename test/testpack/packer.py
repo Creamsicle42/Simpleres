@@ -32,7 +32,8 @@ with open("test_pack.smr", "wb") as f:
         id_data[fileid]["dat_start"] = f.tell()
         f.write(b'\00\00\00\00') # Write dummy data start
         id_data[fileid]["dat_length"] = f.tell()
-        f.write(b'\00\00\00\00') # Write dummy length
+        f.write(b'\00\00\00\00') # Write dummy compressed length
+        f.write(b'\00\00\00\00') # Write dummy uncompressed length
     for fileid in files:
         with open(fileid, "rb") as subf:
             fstart = f.tell()
@@ -41,6 +42,7 @@ with open("test_pack.smr", "wb") as f:
             f.seek(id_data[fileid]["dat_start"])
             f.write(struct.pack('>I', fstart))
             f.seek(id_data[fileid]["dat_length"])
+            f.write(struct.pack('>I', fend - fstart))
             f.write(struct.pack('>I', fend - fstart))
             f.seek(-1, 2)
     f.close()

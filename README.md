@@ -27,7 +27,8 @@ Resource headers consist of...
 2. 2 bytes encoding the length of the resource name.
 3. 2 bytes containing flags relevant to the resource.
 4. 4 bytes encoding the start position of the resource data from the start of the file.
-4. 4 bytes encoding the length of the resource data.
+4. 4 bytes encoding the length of the compressed resource data.
+5. 4 bytes encoding the length of the uncompressed resource data.
 
 ### SMR Resource Data
 

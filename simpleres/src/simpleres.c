@@ -115,6 +115,7 @@ int SMR_ResourcePackInit(
 		unsigned short flags;
 		unsigned int dat_off;
 		unsigned int dat_len;
+		unsigned int u_len;
 		READ_U32(
 			id_off, 
 			pack_file, 
@@ -140,12 +141,20 @@ int SMR_ResourcePackInit(
 			pack_file, 
 			SMR_ERR_FILE_CANNOT_READ
 		)
+		READ_U32(
+			u_len,
+			pack_file, 
+			SMR_ERR_FILE_CANNOT_READ
+		)
 		header->header_section[i] = (SMR_ResourceHeader) {
 			.data_length = dat_len,
 			.data_offset = dat_off,
 			.res_flags = flags,
 			.id_length = id_len,
-			.id_start_offset = id_off
+			.id_start_offset = id_off,
+			.data = NULL,
+			.uncompressed_size = u_len,
+			.ref_count = 0
 		};
 	}
 
@@ -164,6 +173,56 @@ int SMR_ResourcePackInit(
 
 
 	SMR_ResHeapInit(&header->data_heap, container_data, data_size - preamble_size);
+
+
+	return SMR_ERR_OK;
+}
+
+
+int SMR_CmpResName(char *start, int len, const char *compare) {
+	for (int i = 0; i < len; i++) {
+		if (compare[i] == '\n' && i == len - 1)
+			return 0;
+		if (compare[i] != start[i])
+			return 0;
+	}
+	return 1;
+}
+
+
+int SMR_GetResourceHandle(
+	SMR_ResourcePack *pack,
+	SMR_ResourceHandle *handle,
+	const char *res_id
+) {
+	SMR_ResourcePackHeader *header = pack->data;
+
+	// Find the resource index
+	size_t res_ind = -1;
+	for (int i = 0 ; i < header->resource_count; i++) {
+		SMR_ResourceHeader *r_header = header->header_section + i;
+		if (SMR_CmpResName(header->string_section_offset + r_header->id_start_offset, r_header->id_length, res_id)) {
+			res_ind = i;
+			break;
+		}
+	}
+
+	if (res_ind == -1)
+		return SMR_ERR_RESOURCE_NOT_FOUND;
+
+	handle->resource_id = res_ind;
+	
+	// If data is loaded return it
+	if (header->header_section[res_ind].data != NULL) {
+		header->header_section[res_ind].ref_count ++;
+		return SMR_ERR_OK;
+	}
+	// Otherwise load the data 
+	if (
+		SMR_LoadResourceData(header, res_ind)
+	) {
+		return SMR_ERR_NOT_ENOUGH_SPACE;
+	}
 
 
 	return SMR_ERR_OK;

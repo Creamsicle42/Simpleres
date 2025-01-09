@@ -13,6 +13,9 @@ typedef struct {
 	unsigned short res_flags;
 	unsigned int data_offset;
 	unsigned int data_length;
+	unsigned int uncompressed_size;
+	void* data;
+	unsigned short ref_count;
 } SMR_ResourceHeader;
 
 
@@ -26,10 +29,7 @@ typedef struct {
 } SMR_ResourcePackHeader;
 
 
-
-
-
-
+int SMR_LoadResourceData(SMR_ResourcePackHeader *header, unsigned short id);
 
 
 #endif

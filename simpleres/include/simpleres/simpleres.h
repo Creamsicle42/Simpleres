@@ -18,6 +18,7 @@
 #define SMR_ERR_FILE_CANNOT_READ 2
 #define SMR_ERR_FILE_HEADER_INVALID 3
 #define SMR_ERR_NOT_ENOUGH_SPACE 4
+#define SMR_ERR_RESOURCE_NOT_FOUND 5
 
 // -----------------
 // Struct Definition
