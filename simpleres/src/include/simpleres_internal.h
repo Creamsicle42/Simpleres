@@ -23,4 +23,15 @@ typedef struct {
 } SMR_ResourcePackHeader;
 
 
+// Data for a single memory block
+typedef struct {
+	int next_offset; // Number of bytes till the next block
+	short offset; // Offset from this block till the start of the data
+} SMR_MemoryBlock;
+
+
+
+
+
+
 #endif
