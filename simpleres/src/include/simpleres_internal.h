@@ -23,7 +23,7 @@ typedef struct {
 typedef struct {
 	unsigned short pack_version;
 	unsigned short resource_count;
-	char *string_section_offset;
+	char *string_section;
 	SMR_ResourceHeader *header_section;
 	SMR_Stack data_heap;
 } SMR_ResourcePackHeader;

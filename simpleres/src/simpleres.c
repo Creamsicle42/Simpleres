@@ -78,7 +78,7 @@ int SMR_ResourcePackInit(
 
 	header->resource_count = resource_count;
 	header->pack_version = file_version;
-	header->string_section_offset = data_space + sizeof(SMR_ResourcePackHeader);
+	header->string_section = data_space + sizeof(SMR_ResourcePackHeader);
 	header->header_section =
 		data_space + sizeof(SMR_ResourcePackHeader) + id_section_length;
 
@@ -97,7 +97,7 @@ int SMR_ResourcePackInit(
 
 	// Read in id section
 	int id_read_res = fread(
-		(void*)header->string_section_offset,
+		(void*)header->string_section,
 		1, 
 		id_section_length,
 		pack_file
@@ -179,7 +179,11 @@ int SMR_ResourcePackInit(
 
 
 int SMR_CmpResName(char *start, int len, const char *compare) {
-	for (int i = 0; i < len; i++) {
+	printf("Checking equality\n");
+	for (int i = 0; i < len - 1; i++) {
+		//printf("Checking char #%d\n", i);
+		//printf("- Ref %c\n", compare[i]);
+		//printf("- Start %c\n", start[i]);
 		if (compare[i] == '\n' && i == len - 1)
 			return 0;
 		if (compare[i] != start[i])
@@ -200,7 +204,11 @@ int SMR_GetResource(
 	size_t res_ind = -1;
 	for (int i = 0 ; i < header->resource_count; i++) {
 		SMR_ResourceHeader *r_header = header->header_section + i;
-		if (SMR_CmpResName(header->string_section_offset + r_header->id_start_offset, r_header->id_length, res_id)) {
+		if (SMR_CmpResName(
+			header->string_section + r_header->id_start_offset,
+			r_header->id_length,
+			res_id
+		)) {
 			res_ind = i;
 			break;
 		}
@@ -208,6 +216,7 @@ int SMR_GetResource(
 
 	if (res_ind == -1)
 		return SMR_ERR_RESOURCE_NOT_FOUND;
+
 
 	FILE *f = fopen(pack->file_name, "r");
 
@@ -218,6 +227,7 @@ int SMR_GetResource(
 			return SMR_ERR_NOT_ENOUGH_SPACE;
 		}
 	}	
+
 
 	slice->data = header->header_section[res_ind].data;
 	slice->size = header->header_section[res_ind].uncompressed_size;
@@ -234,20 +244,25 @@ int SMR_LoadResourceData(FILE *f, SMR_ResourcePackHeader *header, unsigned short
 	// Make sure we can make enough space
 	if (header->data_heap.capacity - header->data_heap.end < space_needed)
 		return 1;
-
 	void* data_space = SMR_StackAlloc(&header->data_heap, space_needed);
-
+	
+	if (data_space == NULL)
+		return 1;
 
 	// Open the file and seek to the start offset
 	fseek(f, comp_start, SEEK_SET);
 
+	header->header_section[id].data = data_space;
+
 	// Check compression flags to get proper read func
-	if (header->header_section[id].res_flags & SMR_FLAG_LZ77) {
+/*	if (header->header_section[id].res_flags & SMR_FLAG_LZ77) {
 		return SMR_ReadLZ77(f, comp_len, data_space);
 	}
-
+*/
 	// Read uncompressed if no flags set
 	return SMR_ReadUncompressed(f, comp_len, data_space);
+
+
 }
 
 SMR_ResourceSnapshot SMR_GetSnapshot(SMR_ResourcePack *pack) {
@@ -285,7 +300,7 @@ int SMR_ResourcePackGetResourceName(
 	unsigned int off = header->header_section[resource].id_start_offset;
 	unsigned short len = header->header_section[resource].id_length;
 	for (int i = off; i < off + len; i++) {
-		char c = header->string_section_offset[i];
+		char c = header->string_section[i];
 		data[i - off] = c;
 	}
 	data[len] = '\00';

@@ -45,5 +45,16 @@ int main() {
 	);
 	printf("Loaded resource %s\n", str2);
 
+	SMR_ResourceSlice res;
+	int err = SMR_GetResource(&pack, &res, "test_file_1.txt");
+	if(err)
+		return err;
+
+	printf("Got resource of len %d at pos %p\n", res.size, res.data);
+
+	for (int i = 0; i < res.size; i++) {
+		printf("%c", ((char*)res.data)[i]);
+	}
+
 	return 0;
 }

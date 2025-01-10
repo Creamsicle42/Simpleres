@@ -28,7 +28,7 @@ with open("test_pack.smr", "wb") as f:
     for fileid in files: # Resource header first pass
         f.write(struct.pack('>I', id_data[fileid]["start"])) # ID start
         f.write(struct.pack('>H', id_data[fileid]["len"])) # ID Length
-        f.write(b'\00\01') # Uncompressed flag
+        f.write(b'\00\00') # Uncompressed flag
         id_data[fileid]["dat_start"] = f.tell()
         f.write(b'\00\00\00\00') # Write dummy data start
         id_data[fileid]["dat_length"] = f.tell()
@@ -44,5 +44,5 @@ with open("test_pack.smr", "wb") as f:
             f.seek(id_data[fileid]["dat_length"])
             f.write(struct.pack('>I', fend - fstart))
             f.write(struct.pack('>I', fend - fstart))
-            f.seek(-1, 2)
+            f.seek(0, io.SEEK_END)
     f.close()

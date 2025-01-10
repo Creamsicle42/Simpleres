@@ -1,5 +1,6 @@
 #include <memory.h>
 #include <stddef.h>
+#include <stdio.h>
 
 
 void SMR_StackInit(SMR_Stack *stack, void *data, size_t size) {
@@ -17,8 +18,9 @@ void* SMR_StackAlloc(SMR_Stack *stack, size_t size) {
 	// Allign size to 8 bytes
 	size_t true_size = size + (size % 8);
 	
-	if (stack->end + true_size < stack->capacity)
+	if (stack->end + true_size > stack->capacity) {
 		return NULL;
+	}
 
 	void *ret = stack->start + stack->end;
 	stack->end += true_size;
