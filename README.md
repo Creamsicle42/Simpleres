@@ -4,7 +4,9 @@ Simple resource pack implementation in C
 
 ## About
 
-Simpleres is a general purpose library for reading and managing arbitrary resource files from a single pack file. Simpleres handles the loading of a resource pack, loading of compressed subresources into a static memory space. And automatic freeing of resource memory when not used.
+Simpleres is a general purpose library for reading and managing arbitrary resource files from a single pack file. Simpleres handles the loading of a resource pack, loading of compressed subresources into a static memory space. And freeing of resource memory when not used.
+
+Simpleres uses a stack allocation system to store loaded resources. This means that all the resources for a scene can be loaded at once, and freed at once. This is intented to simplify memory management, and ensure that memory usage is deterministic.
 
 ## SMR Files
 
@@ -55,35 +57,28 @@ if (error != SMR_OK) {
 }
 ```
 
+To get a snapshot of a given resource load state...
+
+```c
+SMR_ResourceSnapshot snapshot = SMR_GetSnapshot(&pack);
+```
+
 To get a hande to a resource within a loaded pack...
 
 ```c
-SMR_ResourceHandle handle;
-int error = SMR_GetResourceHandle(
+SMR_ResourceSlice slice;
+int error = SMR_GetResource(
     &pack, // Pack that has the resource
-    &handle, // Handle that will point to the resource
+    &slice, // Handle that will point to the resource
     "resource.txt" // ID of the resource, will be a filename for most packer implementations
 );
 ```
 
-To use a handle to access resource data...
+And to free all resources loaded after a snapshot...
 
 ```c
-SMR_ResourceSlice slice;
-int error = SMR_GetResourceSlice(
+int error = SMR_UnloadResources(
     &pack,
-    &handle,
-    &slice
+    snapshot
 );
 ```
-
-And finally to free a resource...
-
-```c
-SMR_ReturnResourceHandle(
-    &pack,
-    handle
-);
-```
-
-Once all handles to a resource are returned, the resource will automatically be freed.

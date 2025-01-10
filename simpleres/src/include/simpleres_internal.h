@@ -1,7 +1,8 @@
 #ifndef SIMPLERES_INTERNAL_H_
 #define SIMPLERES_INTERNAL_H_
 
-
+#include <stddef.h>
+#include <stdio.h>
 #include <memory.h>
 
 // Simpleres internal header file, used for non interface headers
@@ -15,7 +16,6 @@ typedef struct {
 	unsigned int data_length;
 	unsigned int uncompressed_size;
 	void* data;
-	unsigned short ref_count;
 } SMR_ResourceHeader;
 
 
@@ -25,11 +25,12 @@ typedef struct {
 	unsigned short resource_count;
 	char *string_section_offset;
 	SMR_ResourceHeader *header_section;
-	SMR_ResHeap data_heap;
+	SMR_Stack data_heap;
 } SMR_ResourcePackHeader;
 
 
-int SMR_LoadResourceData(SMR_ResourcePackHeader *header, unsigned short id);
-
+int SMR_LoadResourceData(FILE *f, SMR_ResourcePackHeader *header, unsigned short id);
+int SMR_ReadUncompressed(FILE *f, size_t bytes, char *data);
+int SMR_ReadLZ77(FILE *f, size_t bytes, char *data);
 
 #endif

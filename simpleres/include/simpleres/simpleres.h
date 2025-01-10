@@ -7,6 +7,7 @@
 
 
 // Includes
+#include <stddef.h>
 #include <stdio.h>
 
 // -----------------
@@ -19,6 +20,9 @@
 #define SMR_ERR_FILE_HEADER_INVALID 3
 #define SMR_ERR_NOT_ENOUGH_SPACE 4
 #define SMR_ERR_RESOURCE_NOT_FOUND 5
+
+
+#define SMR_FLAG_LZ77 1
 
 // -----------------
 // Struct Definition
@@ -33,12 +37,9 @@ typedef struct {
 } SMR_ResourceSlice;
 
 
-/**
- * Handle to a resource within a pack
-*/
-typedef struct {
-	unsigned short resource_id;
-} SMR_ResourceHandle;
+
+// A snapshot of tine of the resourece manager which can be rollbacked to to unload resources
+typedef size_t SMR_ResourceSnapshot;
 
 
 /**
@@ -51,6 +52,7 @@ typedef struct {
 	void *data; // Pointer to the data used by the pack
 	unsigned int data_size; // Size of data allocated for pack use
 } SMR_ResourcePack;
+
 
 // ---------------
 // Func Definition
@@ -82,40 +84,33 @@ int SMR_ResourcePackInit(
  * @param *res_id The resource id to get
  * @return A SMR error code
 */
-int SMR_GetResourceHandle(
+int SMR_GetResource(
 	SMR_ResourcePack *pack,
-	SMR_ResourceHandle *handle,
+	SMR_ResourceSlice *slice,
 	const char *res_id
 );
 
 
 /**
- * Uses a resource handle to get a pointer to data in memory
- * Slices returned may be invalidated in the future, so make sure to call this before that can happen
+ * Gets a snapshot that can be rollbacked to to unload resources.
  *
- * @param *pack The pack that has the resource
- * @param *handle The handle to the desired resource
- * @param *slice the slice that will be filled in
- * @return A SMR error code
-*/
-int SMR_GetResourceSlice(
-	SMR_ResourcePack *pack,
-	SMR_ResourceHandle *handle,
-	SMR_ResourceSlice *slice
-);
+ * @param pack The pack to get a snapshot of.
+ * @return A snapshot.
+ */
+SMR_ResourceSnapshot SMR_GetSnapshot(SMR_ResourcePack *pack);
 
 
-/*
- * Returns a resource handle that is no longer needed
+/**
+ *  Unloads all resources loaded after a given snapshot.
  *
- * @param *pack The pack that has the resource
- * @param *handle The handle being returned
-*/
-void SMR_ReturnResourceHandle(
+ *  @param *pack The pack to unload resources in.
+ *  @param snapshot The snapshot to unload resources to.
+ *  @return A SMR error code
+ */
+int SMR_UnloadResources(
 	SMR_ResourcePack *pack,
-	SMR_ResourceHandle *handle
+	SMR_ResourceSnapshot snapshot
 );
-
 
 /**
  * Get the number of resources in a pack

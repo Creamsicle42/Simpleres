@@ -154,7 +154,6 @@ int SMR_ResourcePackInit(
 			.id_start_offset = id_off,
 			.data = NULL,
 			.uncompressed_size = u_len,
-			.ref_count = 0
 		};
 	}
 
@@ -169,10 +168,10 @@ int SMR_ResourcePackInit(
 		id_section_length + 
 		(sizeof(SMR_ResourceHeader) * resource_count);
 
-	void* container_data = data_space + preamble_size;
+	char* container_data = (char*)data_space + preamble_size;
 
 
-	SMR_ResHeapInit(&header->data_heap, container_data, data_size - preamble_size);
+	SMR_StackInit(&header->data_heap, container_data, data_size - preamble_size);
 
 
 	return SMR_ERR_OK;
@@ -190,9 +189,9 @@ int SMR_CmpResName(char *start, int len, const char *compare) {
 }
 
 
-int SMR_GetResourceHandle(
+int SMR_GetResource(
 	SMR_ResourcePack *pack,
-	SMR_ResourceHandle *handle,
+	SMR_ResourceSlice *slice,
 	const char *res_id
 ) {
 	SMR_ResourcePackHeader *header = pack->data;
@@ -210,22 +209,62 @@ int SMR_GetResourceHandle(
 	if (res_ind == -1)
 		return SMR_ERR_RESOURCE_NOT_FOUND;
 
-	handle->resource_id = res_ind;
+	FILE *f = fopen(pack->file_name, "r");
+
+	if (header->header_section[res_ind].data == NULL) {
+		if (
+			SMR_LoadResourceData(f, header, res_ind)
+		) {
+			return SMR_ERR_NOT_ENOUGH_SPACE;
+		}
+	}	
+
+	slice->data = header->header_section[res_ind].data;
+	slice->size = header->header_section[res_ind].uncompressed_size;
 	
-	// If data is loaded return it
-	if (header->header_section[res_ind].data != NULL) {
-		header->header_section[res_ind].ref_count ++;
-		return SMR_ERR_OK;
-	}
-	// Otherwise load the data 
-	if (
-		SMR_LoadResourceData(header, res_ind)
-	) {
-		return SMR_ERR_NOT_ENOUGH_SPACE;
-	}
-
-
 	return SMR_ERR_OK;
+}
+
+
+int SMR_LoadResourceData(FILE *f, SMR_ResourcePackHeader *header, unsigned short id) {
+	size_t comp_start = header->header_section[id].data_offset;
+	size_t comp_len = header->header_section[id].data_length;
+	size_t space_needed = header->header_section[id].uncompressed_size;
+
+	// Make sure we can make enough space
+	if (header->data_heap.capacity - header->data_heap.end < space_needed)
+		return 1;
+
+	void* data_space = SMR_StackAlloc(&header->data_heap, space_needed);
+
+
+	// Open the file and seek to the start offset
+	fseek(f, comp_start, SEEK_SET);
+
+	// Check compression flags to get proper read func
+	if (header->header_section[id].res_flags & SMR_FLAG_LZ77) {
+		return SMR_ReadLZ77(f, comp_len, data_space);
+	}
+
+	// Read uncompressed if no flags set
+	return SMR_ReadUncompressed(f, comp_len, data_space);
+}
+
+SMR_ResourceSnapshot SMR_GetSnapshot(SMR_ResourcePack *pack) {
+	SMR_ResourcePackHeader *header = pack->data;
+	return header->data_heap.end;
+}
+
+
+int SMR_UnloadResources(SMR_ResourcePack *pack, SMR_ResourceSnapshot snapshot) {
+	SMR_ResourcePackHeader *header = pack->data;
+	SMR_StackFree(&header->data_heap, snapshot);
+	return SMR_ERR_OK;
+}
+
+int SMR_ReadUncompressed(FILE *f, size_t bytes, char *data) {
+	fread(data, 1, bytes, f);
+	return 0;
 }
 
 
