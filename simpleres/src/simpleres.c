@@ -282,6 +282,35 @@ int SMR_ReadUncompressed(FILE *f, size_t bytes, char *data) {
 	return 0;
 }
 
+int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
+	struct LZ77Packet{
+		unsigned short lookback;
+		char repeat;
+		char data;
+	} ;
+
+	struct LZ77Packet buffer[128];
+	size_t remaining_bytes = bytes;
+	char *write_pos = data;
+
+	while (remaining_bytes > 0) {
+		size_t remaining_packets = remaining_bytes / sizeof(struct LZ77Packet);
+		short bytes_read = fread((void*)buffer, sizeof(struct LZ77Packet), remaining_packets > 128 ? 128 : remaining_packets, f);
+		for (int i = 0; i < bytes_read / sizeof(struct LZ77Packet); i++) {
+			// Read in lookback section
+			for (int k = 0; k < buffer[i].repeat; i++) {
+				*write_pos = *(write_pos - buffer[i].lookback);
+				write_pos++;
+			}
+			// Add on new char
+			*write_pos = buffer[i].data;
+			write_pos++;
+		}
+		remaining_bytes -= bytes_read;
+	}
+
+	return 0;
+}
 
 unsigned int SMR_ResourcePackGetResourceCount(SMR_ResourcePack *pack) {
 	SMR_ResourcePackHeader *header = pack->data;

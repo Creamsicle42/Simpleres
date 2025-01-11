@@ -82,3 +82,9 @@ int error = SMR_UnloadResources(
     snapshot
 );
 ```
+
+# Compression Formats
+
+## LZ77
+
+The LZ77 format used for Simpleres breaks the incomming message into structs of a 16 bit lookback, a 8 bit repeat section, and a 8 bit character section. The lookback section is encoded in little endian format.
