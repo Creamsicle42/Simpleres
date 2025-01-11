@@ -4,7 +4,9 @@ Simple resource pack implementation in C
 
 ## About
 
-Simpleres is a general purpose library for reading and managing arbitrary resource files from a single pack file. Simpleres handles the loading of a resource pack, loading of compressed subresources into a static memory space. And automatic freeing of resource memory when not used.
+Simpleres is a general purpose library for reading and managing arbitrary resource files from a single pack file. Simpleres handles the loading of a resource pack, loading of compressed subresources into a static memory space. And freeing of resource memory when not used.
+
+Simpleres uses a stack allocation system to store loaded resources. This means that all the resources for a scene can be loaded at once, and freed at once. This is intented to simplify memory management, and ensure that memory usage is deterministic.
 
 ## SMR Files
 
@@ -18,7 +20,7 @@ The .smr header section consists of...
 2. 2 bytes encoding the standard version used.
 3. 2 bytes encoding the number of resources in the smr pack.
 4. 4 bytes encoding the length of the resource id section.
-5. The resource ID section, in which the names of all files within the .smr pack are encoded as raw ASCII strings with no terminator.
+5. The resource ID section, in which the names of all files within the .smr pack are encoded as raw ASCII strings with no terminator. This section must be padded to a multiple of four bytes
 6. The resource header section, in which all resource headers are stored in order.
 
 Resource headers consist of...
@@ -27,7 +29,8 @@ Resource headers consist of...
 2. 2 bytes encoding the length of the resource name.
 3. 2 bytes containing flags relevant to the resource.
 4. 4 bytes encoding the start position of the resource data from the start of the file.
-4. 4 bytes encoding the length of the resource data.
+4. 4 bytes encoding the length of the compressed resource data.
+5. 4 bytes encoding the length of the uncompressed resource data.
 
 ### SMR Resource Data
 
@@ -54,35 +57,34 @@ if (error != SMR_OK) {
 }
 ```
 
+To get a snapshot of a given resource load state...
+
+```c
+SMR_ResourceSnapshot snapshot = SMR_GetSnapshot(&pack);
+```
+
 To get a hande to a resource within a loaded pack...
 
 ```c
-SMR_ResourceHandle handle;
-int error = SMR_GetResourceHandle(
+SMR_ResourceSlice slice;
+int error = SMR_GetResource(
     &pack, // Pack that has the resource
-    &handle, // Handle that will point to the resource
+    &slice, // Handle that will point to the resource
     "resource.txt" // ID of the resource, will be a filename for most packer implementations
 );
 ```
 
-To use a handle to access resource data...
+And to free all resources loaded after a snapshot...
 
 ```c
-SMR_ResourceSlice slice;
-int error = SMR_GetResourceSlice(
+int error = SMR_UnloadResources(
     &pack,
-    &handle,
-    &slice
+    snapshot
 );
 ```
 
-And finally to free a resource...
+# Compression Formats
 
-```c
-SMR_ReturnResourceHandle(
-    &pack,
-    handle
-);
-```
+## LZ77
 
-Once all handles to a resource are returned, the resource will automatically be freed.
+The LZ77 format used for Simpleres breaks the incomming message into structs of a 16 bit lookback, a 8 bit repeat section, and a 8 bit character section. The lookback section is encoded in little endian format.
