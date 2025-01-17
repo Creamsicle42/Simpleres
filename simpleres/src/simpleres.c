@@ -301,7 +301,7 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 		}
 
 		// Otherwise it's a lookback value and it should be used as such
-		lookback -= 255;
+		lookback -= 256;
 		unsigned char run;
 		fread(&run, sizeof(char), 1, f);
 		remaining_bytes -= 3;
