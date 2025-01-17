@@ -2,6 +2,11 @@
 import io
 import struct
 
+
+def lz77compress(bytes, lookback_window, lookahead_window):
+    pass
+
+
 files = ["test_file_1.txt", "test_file_2.txt"]
 
 id_text = ""
