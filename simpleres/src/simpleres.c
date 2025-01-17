@@ -3,7 +3,7 @@
 #include "include/simpleres_internal.h"
 #include "memory.h"
 #include "stdio.h"
-
+#include "types.h"
 
 #define READ_U16(val, file, err_code, err_text) {		\
 	char buff[2];				\
@@ -46,12 +46,12 @@ int SMR_ResourcePackInit(
 
 	union Reader{
 		struct {
-		char id[4];
-		unsigned short version;
-		unsigned short res_count;
-		unsigned int id_section_len;
+		u8 id[4];
+		u16 version;
+		u16 res_count;
+		u32 id_section_len;
 		} str;
-		char byt[12];
+		u8 byt[12];
 	 };
 
 	union Reader reader;
@@ -118,12 +118,12 @@ int SMR_ResourcePackInit(
 	// Read in header section
 	for (int i = 0; i < reader.str.res_count; i++) {
 		struct ResReader{
-			unsigned int id_start;
-			unsigned short id_len;
-			unsigned short flags;
-			unsigned int data_start;
-			unsigned int comp_len;
-			unsigned int uncomp_len;
+			u32 id_start;
+			u16 id_len;
+			u16 flags;
+			u32 data_start;
+			u32 comp_len;
+			u32 uncomp_len;
 		} res;
 		
 		if (fread(&res, sizeof(struct ResReader), 1, pack_file) != 1) {
@@ -267,11 +267,6 @@ int SMR_ReadUncompressed(FILE *f, size_t bytes, char *data) {
 }
 
 int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
-	struct LZ77Packet{
-		unsigned short lookback;
-		char repeat;
-		char data;
-	} ;
 	size_t remaining_bytes = bytes;
 	char *write_pos = data;
 	char test;
@@ -282,13 +277,12 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 		// Read in a 16 bit value
 		union {
 			char b[2];
-			unsigned short lb;
+			u16 lb;
 		} r;
 		unsigned short lookback;
 		fread(&r.b[0], 1, 1, f);
 		fread(&r.b[1], 1, 1, f);
 		lookback = r.lb;
-		//printf("0x%04X - ", lookback);
 		// If value is less than 256 then it is a literal
 		if (lookback < 256) {
 			char ch = lookback;
