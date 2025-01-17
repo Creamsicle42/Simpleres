@@ -5,10 +5,11 @@
 #include "stdio.h"
 
 
-#define READ_U16(val, file, err_code) {		\
+#define READ_U16(val, file, err_code, err_text) {		\
 	char buff[2];				\
 	if (fread(buff, 1, 2, file) != 2){	\
 		fclose(file);			\
+		printf(err_text);\
 		return err_code;		\
 	}					\
 	for (int i = 0; i < 2; i++)		\
@@ -16,10 +17,11 @@
 }
 
 
-#define READ_U32(val, file, err_code) {		\
+#define READ_U32(val, file, err_code, err_text) {		\
 	char buff[4];				\
 	if (fread(buff, 1, 4, file) != 4){	\
 		fclose(file);			\
+		printf(err_text);		\
 		return err_code;		\
 	}					\
 	for (int i = 0; i < 4; i++)		\
@@ -35,40 +37,45 @@ int SMR_ResourcePackInit(
 
 	
 	// Get file handle
-	FILE* pack_file = fopen(pack_path, "r");
+	FILE* pack_file = fopen(pack_path, "rb");
 
 	if (!pack_file)
 		return SMR_ERR_FILE_NOT_FOUND;
 
-	// Read first four bytes to make sure header is okay
-	char header_read[4];
 	
-	int s_read = fread((void*)header_read, 1, 4, pack_file);
-	if (s_read != 4) 
+
+	union Reader{
+		struct {
+		char id[4];
+		unsigned short version;
+		unsigned short res_count;
+		unsigned int id_section_len;
+		} str;
+		char byt[12];
+	 };
+
+	union Reader reader;
+	if (fread(&reader.byt, sizeof(union Reader), 1, pack_file) != 1) {
+		fclose(pack_file);
+		printf("Was not able to read entire header, file must be at least %u bytes\n", sizeof(union Reader));
 		return SMR_ERR_FILE_CANNOT_READ;
+	}
 
 	char ref_header[4] = {'s', 'm', 'p', 'r'};
 
 	for (int i = 0; i < 4; i++) {
-		if (header_read[i] != ref_header[i]) {
+		if (reader.str.id[i] != ref_header[i]) {
 			fclose(pack_file);
+			printf("File must start with 'smpr'\n");
 			return SMR_ERR_FILE_HEADER_INVALID;
 		}
 	}
 
 
-	// If the file is valid then we go ahead 
-	unsigned short file_version;
-	READ_U16(file_version, pack_file, SMR_ERR_FILE_HEADER_INVALID)
 
-	unsigned short resource_count;
-	READ_U16(resource_count, pack_file, SMR_ERR_FILE_HEADER_INVALID)
-
-	unsigned int id_section_length;
-	READ_U32(id_section_length, pack_file, SMR_ERR_FILE_HEADER_INVALID)
-
-	if (id_section_length % 4 != 0) {
+	if (reader.str.id_section_len % 4 != 0) {
 		fclose(pack_file);
+		printf("ID section must be padded to a multiple of four, currently is %d\n", reader.str.id_section_len);
 		return SMR_ERR_FILE_HEADER_INVALID;
 	}
 
@@ -76,17 +83,17 @@ int SMR_ResourcePackInit(
 	// From now on the start of the data space is the header
 	SMR_ResourcePackHeader *header = data_space;
 
-	header->resource_count = resource_count;
-	header->pack_version = file_version;
+	header->resource_count = reader.str.res_count;
+	header->pack_version = reader.str.version;
 	header->string_section = data_space + sizeof(SMR_ResourcePackHeader);
 	header->header_section =
-		data_space + sizeof(SMR_ResourcePackHeader) + id_section_length;
+		data_space + sizeof(SMR_ResourcePackHeader) + reader.str.id_section_len;
 
 	// Return an error if there is not enough space to allocate the head
 	if (
 		sizeof(SMR_ResourcePackHeader)
-		+ id_section_length
-		+ resource_count * sizeof(SMR_ResourceHeader)
+		+ reader.str.id_section_len 
+		+ reader.str.res_count * sizeof(SMR_ResourceHeader)
 		> data_size
 	) {
 		fclose(pack_file);
@@ -99,61 +106,39 @@ int SMR_ResourcePackInit(
 	int id_read_res = fread(
 		(void*)header->string_section,
 		1, 
-		id_section_length,
+		reader.str.id_section_len,
 		pack_file
 	);
 
-	if (id_read_res != id_section_length) {
+	if (id_read_res != reader.str.id_section_len) {
 		fclose(pack_file);
 		return SMR_ERR_FILE_CANNOT_READ;
 	}
 
 	// Read in header section
-	for (int i = 0; i < resource_count; i++) {
-		unsigned int id_off;
-		unsigned short id_len;
-		unsigned short flags;
-		unsigned int dat_off;
-		unsigned int dat_len;
-		unsigned int u_len;
-		READ_U32(
-			id_off, 
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
-		READ_U16(
-			id_len, 
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
-		READ_U16(
-			flags, 
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
-		READ_U32(
-			dat_off,
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
-		READ_U32(
-			dat_len,
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
-		READ_U32(
-			u_len,
-			pack_file, 
-			SMR_ERR_FILE_CANNOT_READ
-		)
+	for (int i = 0; i < reader.str.res_count; i++) {
+		struct ResReader{
+			unsigned int id_start;
+			unsigned short id_len;
+			unsigned short flags;
+			unsigned int data_start;
+			unsigned int comp_len;
+			unsigned int uncomp_len;
+		} res;
+		
+		if (fread(&res, sizeof(struct ResReader), 1, pack_file) != 1) {
+			fclose(pack_file);
+			return SMR_ERR_FILE_CANNOT_READ;
+		}
 		header->header_section[i] = (SMR_ResourceHeader) {
-			.data_length = dat_len,
-			.data_offset = dat_off,
-			.res_flags = flags,
-			.id_length = id_len,
-			.id_start_offset = id_off,
 			.data = NULL,
-			.uncompressed_size = u_len,
+			.id_length = res.id_len,
+			.res_flags = res.flags,
+			.data_length = res.comp_len,
+			.uncompressed_size = res.uncomp_len,
+			.data_offset = res.data_start,
+			.id_start_offset = res.id_start
+			
 		};
 	}
 
@@ -165,8 +150,8 @@ int SMR_ResourcePackInit(
 	
 	size_t preamble_size = 
 		sizeof(SMR_ResourcePackHeader) +
-		id_section_length + 
-		(sizeof(SMR_ResourceHeader) * resource_count);
+		reader.str.id_section_len + 
+		(sizeof(SMR_ResourceHeader) * reader.str.res_count);
 
 	char* container_data = (char*)data_space + preamble_size;
 
@@ -179,7 +164,6 @@ int SMR_ResourcePackInit(
 
 
 int SMR_CmpResName(char *start, int len, const char *compare) {
-	printf("Checking equality\n");
 	for (int i = 0; i < len - 1; i++) {
 		//printf("Checking char #%d\n", i);
 		//printf("- Ref %c\n", compare[i]);
@@ -218,7 +202,7 @@ int SMR_GetResource(
 		return SMR_ERR_RESOURCE_NOT_FOUND;
 
 
-	FILE *f = fopen(pack->file_name, "r");
+	FILE *f = fopen(pack->file_name, "rb");
 
 	if (header->header_section[res_ind].data == NULL) {
 		if (
@@ -249,16 +233,16 @@ int SMR_LoadResourceData(FILE *f, SMR_ResourcePackHeader *header, unsigned short
 	if (data_space == NULL)
 		return 1;
 
+	//printf("Starting read form pos %u\n", comp_start);
 	// Open the file and seek to the start offset
 	fseek(f, comp_start, SEEK_SET);
 
 	header->header_section[id].data = data_space;
-
 	// Check compression flags to get proper read func
-/*	if (header->header_section[id].res_flags & SMR_FLAG_LZ77) {
+	if (header->header_section[id].res_flags & SMR_FLAG_LZ77) {
 		return SMR_ReadLZ77(f, comp_len, data_space);
 	}
-*/
+
 	// Read uncompressed if no flags set
 	return SMR_ReadUncompressed(f, comp_len, data_space);
 
@@ -288,25 +272,46 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 		char repeat;
 		char data;
 	} ;
-
-	struct LZ77Packet buffer[128];
 	size_t remaining_bytes = bytes;
 	char *write_pos = data;
-
+	char test;
+	fread(&test, 1, 1, f);
+	//printf("Test read is 0x%02X\n",test);
+	fseek(f, -1, SEEK_CUR);
 	while (remaining_bytes > 0) {
-		size_t remaining_packets = remaining_bytes / sizeof(struct LZ77Packet);
-		short bytes_read = fread((void*)buffer, sizeof(struct LZ77Packet), remaining_packets > 128 ? 128 : remaining_packets, f);
-		for (int i = 0; i < bytes_read / sizeof(struct LZ77Packet); i++) {
-			// Read in lookback section
-			for (int k = 0; k < buffer[i].repeat; i++) {
-				*write_pos = *(write_pos - buffer[i].lookback);
-				write_pos++;
-			}
-			// Add on new char
-			*write_pos = buffer[i].data;
+		// Read in a 16 bit value
+		union {
+			char b[2];
+			unsigned short lb;
+		} r;
+		unsigned short lookback;
+		fread(&r.b[0], 1, 1, f);
+		fread(&r.b[1], 1, 1, f);
+		lookback = r.lb;
+		//printf("0x%04X - ", lookback);
+		// If value is less than 256 then it is a literal
+		if (lookback < 256) {
+			char ch = lookback;
+			*write_pos = ch;
+			//printf("- %c", ch);
+			write_pos++;
+			remaining_bytes -= 2;
+			//printf(" - %u\n", remaining_bytes);
+			continue;
+		}
+
+		// Otherwise it's a lookback value and it should be used as such
+		lookback -= 256;
+		unsigned char run;
+		fread(&run, sizeof(char), 1, f);
+		remaining_bytes -= 3;
+		//printf("Reading %u lookback bytes\n", lookback);
+		for (int i = 0; i < run; i++) {
+			*write_pos = *(write_pos - lookback);
+			//printf("- %c", *(write_pos - lookback));
 			write_pos++;
 		}
-		remaining_bytes -= bytes_read;
+
 	}
 
 	return 0;

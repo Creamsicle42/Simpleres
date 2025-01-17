@@ -87,4 +87,4 @@ int error = SMR_UnloadResources(
 
 ## LZ77
 
-The LZ77 format used for Simpleres breaks the incomming message into structs of a 16 bit lookback, a 8 bit repeat section, and a 8 bit character section. The lookback section is encoded in little endian format.
+LZ77 Compressed files consist of 16 bit codes, followed by an option 8 bit run length. If the code is less than 256, then is is considered to be a literal codeword. If the code is 256 or greater, it is considered to be a lookback value, and will be followed by an 8 bit value representing the run length.

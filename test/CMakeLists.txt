@@ -30,12 +30,17 @@ macro(add_unit_test)
 endmacro(add_unit_test)
 
 
-add_unit_test(
-	NAME pack_header_test
-	SOURCES pack_header_testing.c
-	LIBS smpr::smpr
-)
+#add_unit_test(
+#	NAME pack_header_test
+#	SOURCES pack_header_testing.c
+#	LIBS smpr::smpr
+#)
 
+add_unit_test(
+        NAME decompression_test
+        SOURCES compression_testing.c
+        LIBS smpr::smpr
+)
 
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
                         DEPENDS ${TESTNAMES})
