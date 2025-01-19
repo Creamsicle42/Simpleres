@@ -1,9 +1,10 @@
 #include <simpleres/simpleres.h>
 #include <stddef.h>
+#include "buffreader.h"
 #include "include/simpleres_internal.h"
 #include "memory.h"
 #include "stdio.h"
-
+#include "types.h"
 
 #define READ_U16(val, file, err_code, err_text) {		\
 	char buff[2];				\
@@ -38,6 +39,10 @@ int SMR_ResourcePackInit(
 	
 	// Get file handle
 	FILE* pack_file = fopen(pack_path, "rb");
+	
+	SMR_BuffReader buff_reader = (SMR_BuffReader) {
+		.f = pack_file
+	};
 
 	if (!pack_file)
 		return SMR_ERR_FILE_NOT_FOUND;
@@ -46,16 +51,17 @@ int SMR_ResourcePackInit(
 
 	union Reader{
 		struct {
-		char id[4];
-		unsigned short version;
-		unsigned short res_count;
-		unsigned int id_section_len;
+		u8 id[4];
+		u16 version;
+		u16 res_count;
+		u32 id_section_len;
 		} str;
-		char byt[12];
+		u8 byt[12];
 	 };
 
 	union Reader reader;
-	if (fread(&reader.byt, sizeof(union Reader), 1, pack_file) != 1) {
+
+	if (SMR_BuffReadRaw(&buff_reader, &reader, sizeof(union Reader)) != sizeof(union Reader)) {
 		fclose(pack_file);
 		printf("Was not able to read entire header, file must be at least %u bytes\n", sizeof(union Reader));
 		return SMR_ERR_FILE_CANNOT_READ;
@@ -103,12 +109,7 @@ int SMR_ResourcePackInit(
 	
 
 	// Read in id section
-	int id_read_res = fread(
-		(void*)header->string_section,
-		1, 
-		reader.str.id_section_len,
-		pack_file
-	);
+	u32 id_read_res = SMR_BuffReadRaw(&buff_reader, (void*)header->string_section, reader.str.id_section_len);
 
 	if (id_read_res != reader.str.id_section_len) {
 		fclose(pack_file);
@@ -118,15 +119,15 @@ int SMR_ResourcePackInit(
 	// Read in header section
 	for (int i = 0; i < reader.str.res_count; i++) {
 		struct ResReader{
-			unsigned int id_start;
-			unsigned short id_len;
-			unsigned short flags;
-			unsigned int data_start;
-			unsigned int comp_len;
-			unsigned int uncomp_len;
+			u32 id_start;
+			u16 id_len;
+			u16 flags;
+			u32 data_start;
+			u32 comp_len;
+			u32 uncomp_len;
 		} res;
 		
-		if (fread(&res, sizeof(struct ResReader), 1, pack_file) != 1) {
+		if (SMR_BuffReadRaw(&buff_reader, &res, sizeof(struct ResReader)) != sizeof(struct ResReader)) {
 			fclose(pack_file);
 			return SMR_ERR_FILE_CANNOT_READ;
 		}
@@ -216,6 +217,8 @@ int SMR_GetResource(
 	slice->data = header->header_section[res_ind].data;
 	slice->size = header->header_section[res_ind].uncompressed_size;
 	
+	fclose(f);
+
 	return SMR_ERR_OK;
 }
 
@@ -267,28 +270,19 @@ int SMR_ReadUncompressed(FILE *f, size_t bytes, char *data) {
 }
 
 int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
-	struct LZ77Packet{
-		unsigned short lookback;
-		char repeat;
-		char data;
-	} ;
 	size_t remaining_bytes = bytes;
 	char *write_pos = data;
 	char test;
-	fread(&test, 1, 1, f);
-	//printf("Test read is 0x%02X\n",test);
-	fseek(f, -1, SEEK_CUR);
+	SMR_BuffReader reader = (SMR_BuffReader) {
+		.f = f
+	};
 	while (remaining_bytes > 0) {
 		// Read in a 16 bit value
-		union {
-			char b[2];
-			unsigned short lb;
-		} r;
-		unsigned short lookback;
-		fread(&r.b[0], 1, 1, f);
-		fread(&r.b[1], 1, 1, f);
-		lookback = r.lb;
-		//printf("0x%04X - ", lookback);
+		u16 lookback;
+		u64 read = SMR_BuffReadRaw(&reader, &lookback, 2);
+		if (read != 2) {
+			return SMR_ERR_FILE_CANNOT_READ;
+		}
 		// If value is less than 256 then it is a literal
 		if (lookback < 256) {
 			char ch = lookback;
@@ -302,8 +296,11 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 
 		// Otherwise it's a lookback value and it should be used as such
 		lookback -= 256;
-		unsigned char run;
-		fread(&run, sizeof(char), 1, f);
+		u8 run;
+		//fread(&run, sizeof(char), 1, f);
+		read = SMR_BuffReadRaw(&reader, &run, 1);
+		if (read != 1) 
+			return SMR_ERR_FILE_CANNOT_READ;
 		remaining_bytes -= 3;
 		//printf("Reading %u lookback bytes\n", lookback);
 		for (int i = 0; i < run; i++) {

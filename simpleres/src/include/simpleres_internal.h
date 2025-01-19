@@ -4,25 +4,26 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <memory.h>
+#include <types.h>
 
 // Simpleres internal header file, used for non interface headers
 
 
 typedef struct {
-	unsigned int id_start_offset;
-	unsigned short id_length;
-	unsigned short res_flags;
-	unsigned int data_offset;
-	unsigned int data_length;
-	unsigned int uncompressed_size;
+	u32 id_start_offset;
+	u16 id_length;
+	u16 res_flags;
+	u32 data_offset;
+	u32 data_length;
+	u32 uncompressed_size;
 	void* data;
 } SMR_ResourceHeader;
 
 
 // Data corresponding to a resource pack header
 typedef struct {
-	unsigned short pack_version;
-	unsigned short resource_count;
+	u16 pack_version;
+	u16 resource_count;
 	char *string_section;
 	SMR_ResourceHeader *header_section;
 	SMR_Stack data_heap;
