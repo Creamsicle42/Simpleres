@@ -1,5 +1,6 @@
 #include <simpleres/simpleres.h>
 #include <stddef.h>
+#include "buffreader.h"
 #include "include/simpleres_internal.h"
 #include "memory.h"
 #include "stdio.h"
@@ -216,6 +217,8 @@ int SMR_GetResource(
 	slice->data = header->header_section[res_ind].data;
 	slice->size = header->header_section[res_ind].uncompressed_size;
 	
+	fclose(f);
+
 	return SMR_ERR_OK;
 }
 
@@ -270,19 +273,16 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 	size_t remaining_bytes = bytes;
 	char *write_pos = data;
 	char test;
-	fread(&test, 1, 1, f);
-	//printf("Test read is 0x%02X\n",test);
-	fseek(f, -1, SEEK_CUR);
+	SMR_BuffReader reader = (SMR_BuffReader) {
+		.f = f
+	};
 	while (remaining_bytes > 0) {
 		// Read in a 16 bit value
-		union {
-			char b[2];
-			u16 lb;
-		} r;
-		unsigned short lookback;
-		fread(&r.b[0], 1, 1, f);
-		fread(&r.b[1], 1, 1, f);
-		lookback = r.lb;
+		u16 lookback;
+		u64 read = SMR_BuffReadRaw(&reader, &lookback, 2);
+		if (read != 2) {
+			return SMR_ERR_FILE_CANNOT_READ;
+		}
 		// If value is less than 256 then it is a literal
 		if (lookback < 256) {
 			char ch = lookback;
@@ -296,8 +296,11 @@ int SMR_ReadLZ77(FILE *f, size_t bytes, char *data) {
 
 		// Otherwise it's a lookback value and it should be used as such
 		lookback -= 256;
-		unsigned char run;
-		fread(&run, sizeof(char), 1, f);
+		u8 run;
+		//fread(&run, sizeof(char), 1, f);
+		read = SMR_BuffReadRaw(&reader, &run, 1);
+		if (read != 1) 
+			return SMR_ERR_FILE_CANNOT_READ;
 		remaining_bytes -= 3;
 		//printf("Reading %u lookback bytes\n", lookback);
 		for (int i = 0; i < run; i++) {
