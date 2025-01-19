@@ -39,6 +39,10 @@ int SMR_ResourcePackInit(
 	
 	// Get file handle
 	FILE* pack_file = fopen(pack_path, "rb");
+	
+	SMR_BuffReader buff_reader = (SMR_BuffReader) {
+		.f = pack_file
+	};
 
 	if (!pack_file)
 		return SMR_ERR_FILE_NOT_FOUND;
@@ -56,7 +60,8 @@ int SMR_ResourcePackInit(
 	 };
 
 	union Reader reader;
-	if (fread(&reader.byt, sizeof(union Reader), 1, pack_file) != 1) {
+
+	if (SMR_BuffReadRaw(&buff_reader, &reader, sizeof(union Reader)) != sizeof(union Reader)) {
 		fclose(pack_file);
 		printf("Was not able to read entire header, file must be at least %u bytes\n", sizeof(union Reader));
 		return SMR_ERR_FILE_CANNOT_READ;
@@ -104,12 +109,7 @@ int SMR_ResourcePackInit(
 	
 
 	// Read in id section
-	int id_read_res = fread(
-		(void*)header->string_section,
-		1, 
-		reader.str.id_section_len,
-		pack_file
-	);
+	u32 id_read_res = SMR_BuffReadRaw(&buff_reader, (void*)header->string_section, reader.str.id_section_len);
 
 	if (id_read_res != reader.str.id_section_len) {
 		fclose(pack_file);
@@ -127,7 +127,7 @@ int SMR_ResourcePackInit(
 			u32 uncomp_len;
 		} res;
 		
-		if (fread(&res, sizeof(struct ResReader), 1, pack_file) != 1) {
+		if (SMR_BuffReadRaw(&buff_reader, &res, sizeof(struct ResReader)) != sizeof(struct ResReader)) {
 			fclose(pack_file);
 			return SMR_ERR_FILE_CANNOT_READ;
 		}
